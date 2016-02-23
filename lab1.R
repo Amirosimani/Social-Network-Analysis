@@ -23,6 +23,8 @@ attributes <- subset(attributes, select=c(ID,1:4))
 friendship.matrix <- data.matrix(friendship, rownames.force = NA)
 friendship_graph <- graph.adjacency(friendship.matrix, mode = "directed", weighted=NULL)
 
+dyad.census(friendship_graph)
+
 # Attach atributes to the matrix
 vertex_attr(friendship_graph) <- attributes
 
@@ -68,8 +70,9 @@ friendship_edges_attributes$same_age = ifelse(
 # Get the proportion of each ego's connections who have the same department, level, and age
 ego_homophily_stats <- aggregate(friendship_edges_attributes[,c('same_dept', 'same_level','same_age')], by=list(ID1=friendship_edges_attributes$ID1), FUN=mean, na.rm=TRUE)
 
-#merge back to attributes
-attributes <- merge(attributes,ego_homophily_stats,  by.x="ID", by.y="ID1")
+### 4.merge back to attributes----
+attributes$ID <- as.numeric(attributes$ID)
+attributes <- merge(attributes, ego_homophily_stats, by.x="ID", by.y="ID1", all =TRUE)
 
 summary(lm(same_dept ~ Dept, attributes))
 summary(lm(same_level ~ Level, attributes))
@@ -79,13 +82,15 @@ summary(lm(same_age ~ Age, attributes))
 # Add the degree of each vertex to the attributes
 attributes <- merge(attributes, data.frame(ID=V(friendship_graph)$ID,
                              degree= degree(friendship_graph)),
-                           by='ID')
+                           by='ID', all =TRUE)
 
 summary(lm(same_dept ~ Dept+degree, attributes))
 summary(lm(same_level ~ Level+degree, attributes))
 summary(lm(same_age ~ Age+degree, attributes))
 
 ### 5. add transitivity----
-attributes <- merge(attributes, data.frame(ID=V(friendship_graph)$ID, transitivity=transitivity(friendship_graph, type="local") ) , by='ID')
+attributes <- merge(attributes, data.frame(ID=V(friendship_graph)$ID, 
+                                           transitivity=transitivity(friendship_graph, type="local") ) ,
+                    by='ID', all = TRUE)
 
-dyad.census(friendship_graph)
+summary(lm(same_age ~ Age + degree + transitivity, attributes))
