@@ -10,7 +10,104 @@ output: pdf_document
 I have selected KRACKHARDT--HIGH-TECH MANAGERS data set. I am interested to see how different attributes of manager affect their friendship network. MY hypothesis is that homophilies in friendship ego networks have a positive corealtion with your age group, your deperatment, tenureship and your level in corporate hierarchy.
 I define age group as if you are in the range of one standard deviation.
 
+``` {r, echo= FALSE, results='hide', warning=FALSE,message=FALSE, error=FALSE}
+### 0.Libraries----
+library(data.table)
+library(dplyr)
+library(igraph)
+library(ggplot2)
 
+### 1.import data----
+network <- read.csv("http://moreno.ss.uci.edu/krackht.dat", header=T, sep=";", skip= 7)
+network = setDT(network)[, tstrsplit(DATA., ' ')]
+network = network[,V1:=NULL]
+
+#splitting the network data to advice/friendship/report
+advice <- slice(network, 1:21)
+friendship <- slice(network, 22:42)
+report <- slice(network, 43:63)
+
+#importing attributes data
+attributes <- read.csv("Kracht_attributes.csv", header=TRUE, sep=";")
+attributes$ID <- row.names(attributes)
+attributes <- subset(attributes, select=c(ID,1:4))
+
+### 2.Graph----
+#. Create igraph object from this matrix
+friendship.matrix <- data.matrix(friendship, rownames.force = NA)
+friendship_graph <- graph.adjacency(friendship.matrix, mode = "directed", weighted=NULL)
+
+dyad.census(friendship_graph)
+
+# Attach atributes to the matrix
+vertex_attr(friendship_graph) <- attributes
+
+#. Create an edgelist data.frame from the graph
+friendship_edges <- data.frame(get.edgelist(friendship_graph))
+colnames(friendship_edges)  <- c('ID1', 'ID2')
+
+# Attaching vertex attributes to the edge list to ID1 & ID2
+friendship_edges_attributes <- merge(friendship_edges,
+                                     setNames(attributes, paste0(names(attributes) ,'1')),
+                                     by='ID1')
+
+friendship_edges_attributes <- arrange(friendship_edges_attributes, ID2)
+
+friendship_edges_attributes <- merge(friendship_edges_attributes,
+                                     setNames(attributes, paste0(names(attributes) ,'2')),
+                                     by='ID2')
+
+#sorting back
+friendship_edges_attributes <- arrange(friendship_edges_attributes, ID1)
+friendship_edges_attributes <- subset(friendship_edges_attributes, select=c(ID1,1:10))
+friendship_edges_attributes$ID1.1 <- NULL
+
+### 3.Homophily----
+
+# Add columns to friendship_edges_attributes which inidcate if the department of
+#  the first vertex in each edge is the same as that of the second vertex
+friendship_edges_attributes$same_dept = ifelse(
+  friendship_edges_attributes$Dept1==friendship_edges_attributes$Dept2, 1,
+  0) # otherwise it's 0
+
+#  Add columns  which inidcate if they have the same level
+friendship_edges_attributes$same_level = ifelse(
+  friendship_edges_attributes$Level1==friendship_edges_attributes$Level2, 1,
+  0) # otherwise it's 0
+
+#  Add columns  which inidcate if they are in the same age group (based on age SD)
+friendship_edges_attributes$same_age = ifelse(
+  (friendship_edges_attributes$Age1 < friendship_edges_attributes$Age2 + 5) & (friendship_edges_attributes$Age1 > friendship_edges_attributes$Age2 - 5),
+   1,
+  0) # otherwise it's 0
+
+#  Add columns  which inidcate if they are in the same tenure group
+friendship_edges_attributes$same_tenure = ifelse(
+  (friendship_edges_attributes$Tenure1 < friendship_edges_attributes$Tenure2 + 1) & (friendship_edges_attributes$Tenure1 > friendship_edges_attributes$Tenure2 - 1),
+  1,
+  0) # otherwise it's 0
+
+# Get the proportion of each ego's connections who have the same department, level, and age
+ego_homophily_stats <- aggregate(friendship_edges_attributes[,c('same_dept', 'same_level','same_age', 'same_tenure')], by=list(ID1=friendship_edges_attributes$ID1),
+                                 FUN=mean, na.rm=TRUE, all = TRUE)
+# merge back to attributes
+attributes$ID <- as.numeric(attributes$ID)
+attributes <- merge(attributes, ego_homophily_stats, by.x="ID", by.y="ID1", all =TRUE)
+
+# Add the degree of each vertex to the attributes
+attributes <- merge(attributes, data.frame(ID=V(friendship_graph)$ID,
+                                           degree.in = degree(friendship_graph, mode = "in")),
+                    by='ID', all =TRUE)
+
+attributes <- merge(attributes, data.frame(ID=V(friendship_graph)$ID,
+                                           degree.out = degree(friendship_graph, mode = "out")),
+                    by='ID', all =TRUE)
+
+#transitivity
+attributes <- merge(attributes, data.frame(ID=V(friendship_graph)$ID, 
+                                           transitivity=transitivity(friendship_graph, type="local") ) ,
+                    by='ID', all = TRUE)
+```
 ## 2. Explain why you think these two variables should be related.
 
 I suggest that in a corporation, you befirend more with colleagues who are in your own department, or in your own level, or in the same age group as you have more work/non-work things to share.
@@ -32,7 +129,7 @@ Since I needed to see if two nodes in a relation are in the same level, same dep
 
 ```{r, eval=FALSE}
 
-riendship_edges_attributes$same_dept = ifelse(
+friendship_edges_attributes$same_dept = ifelse(
   friendship_edges_attributes$Dept1==friendship_edges_attributes$Dept2, 1,
   0) # otherwise it's 0
 
@@ -57,20 +154,151 @@ friendship_edges_attributes$same_tenure = ifelse(
 
 ```
 
-## 4. Present your initial results from your first few models. What do they indicated about your hypothesis?
+Basic ego netowork measures including in and out degree, densitiy, and reciprocity of friendship edges are:
 
+__Average and Standard Deviation of in-degrees__
+```{r, echo=FALSE}
+# Degrees
+mean(attributes$degree.in)
+sd(attributes$degree.in)
+```
+
+__Average and Standard Deviation of out-degrees__
+```{r, echo=FALSE}
+mean(attributes$degree.out)
+sd(attributes$degree.out)
+```
+
+__Reciprocity__
+```{r, echo=FALSE}
+reciprocity(friendship_graph)
+```
+
+__Density__
+```{r, echo=FALSE}
+graph.density(friendship_graph)
+```
+
+## 4. Present your initial results from your first few models. What do they indicated about your hypothesis?
+My initial finding is homophliy of each node based on attributes as shown in the following table. 
+
+``` {r, results='asis'}
+knitr::kable(ego_homophily_stats)
+```
+
+__4.1 Basic statistics__
+```{r, echo=FALSE}
+ print(paste0("Average homophily based on department: ", mean(ego_homophily_stats$same_dept)))
+ print(paste0("Standard deviation for homophily based on department: ", sd(ego_homophily_stats$same_dept)))
+```
+
+```{r, echo=FALSE}
+print(paste0("Average homophily based on level: ", mean(ego_homophily_stats$same_level)))
+print(paste0("Standard deviation for homophily based on level: ", sd(ego_homophily_stats$same_level)))
+```
+
+```{r, echo=FALSE}
+print(paste0("Average homophily based on age: ", mean(ego_homophily_stats$same_age)))
+print(paste0("Standard deviation for homophily based on age: ", sd(ego_homophily_stats$same_age)))
+```
+
+```{r, echo=FALSE}
+print(paste0("Average homophily based on tenure: ", mean(ego_homophily_stats$same_tenure)))
+print(paste0("Standard deviation for homophily based on tenure: ", sd(ego_homophily_stats$same_tenure)))
+```
+
+As can be seen from means and standard deviations of homophily of different attributes, being in the same level means more homophily with less deviation comparing to other attributes. Also it seems that having the same tenureship is not a major factor in forming homophil network of friendship.
+
+***
+__4.2 Plots__
+I have plotted the realtion between each attribute and homophily based on those attributes to see if any visible relations exists.
+
+```{r, echo=FALSE, warning=FALSE,align='center'}
+ggplot(attributes, aes(x=Dept, y=same_dept)) +
+        geom_point(shape=1) + 
+        geom_smooth(method=lm)
+
+ggplot(attributes, aes(x=Level, y=same_level)) +
+        geom_point(shape=1) + 
+        geom_smooth(method=lm)
+
+ggplot(attributes, aes(x=Age, y=same_age)) +
+        geom_point(shape=1) + 
+        geom_smooth(method=lm)
+
+ggplot(attributes, aes(x=Tenure, y=same_tenure)) +
+        geom_point(shape=1) + 
+        geom_smooth(method=lm)
+```
+
+As seen from the graphs, people from tend to form firendship network from their own department, and their own level in the hierarchy. I think it make sense as picking friends from your own department is convinient, you spend time more often with them, and usually there is alot more to discuss about. Forming your friendship network from people of the same rank aslo makes sense - particularly for higher positions like managers - as often there is a seperation between lower ranking staff with higher ones based on the hierarchical power structure. As it is seen from the graph, homophily among managers is 0.75.
+
+However, interesting observation from these graphs is negetive corelation between network homophily and age/tenure. I think one reason could be that since the average age is around 40 with SD 9.5, there are not too many +50 staffs. They are also the same one with higher seniority in their tenure.
+
+***
+__4.3 Model __
+I have fitted linear models on each of those attributes to have a better understanding of correlations.
+
+Homophiy based on the same __Department__:
+```{r}
+summary(lm(same_dept ~ Dept, attributes))
+```
+
+Homophiy based on the same __Level__:
+```{r}
+summary(lm(same_level ~ Level, attributes))
+```
+
+Homophiy based on the same __Age__:
+```{r}
+summary(lm(same_age ~ Age, attributes))
+```
+
+Homophiy based on the same __Tenure__:
+```{r}
+summary(lm(same_tenure ~ Tenure, attributes))
+```
+
+The same conclusions can be made from these models that with unit increase in age and tenureship, homophily drops by 0.004 and 0.001 ofaverage.
+Also it can be seen that none of the variables are statistcially significant.
 
 ## 5. Consider alternate specifications of your variables (i.e., recodings of various kinds). Consider interactions among your variables.
 
+I have fit the same models including __in-degree__, __out-degree__, and __transitivity__ for each node.
 
-## 6. And give your best conclusion as to whether your initial hypothesis held up ­ and if not, why not.
+I constructed those graph measures as below.
+```{r, eval=FALSE}
+attributes <- merge(attributes, data.frame(ID=V(friendship_graph)$ID,
+                                           degree.in = degree(friendship_graph, mode = "in")),
+                    by='ID', all =TRUE)
 
-```{r}
-summary(cars)
+attributes <- merge(attributes, data.frame(ID=V(friendship_graph)$ID,
+                    degree.out = degree(friendship_graph, mode = "out")),
+                    by='ID', all =TRUE)
+
+#transitivity
+attributes <- merge(attributes, data.frame(ID=V(friendship_graph)$ID, 
+                    transitivity=transitivity(friendship_graph, type="local") ) ,
+                    by='ID', all = TRUE)
 ```
 
+***
 
+```{r}
+summary(lm(same_dept ~ Dept + degree.in + degree.out + transitivity, attributes))
+```
 
+```{r}
+summary(lm(same_level ~ Level + degree.in + degree.out + transitivity, attributes))
+```
 
+```{r}
+summary(lm(same_age ~ Age + degree.in + degree.out + transitivity, attributes))
+```
 
+```{r}
+summary(lm(same_tenure ~ Tenure + degree.in + degree.out + transitivity, attributes))
+```
 
+## 6. And give your best conclusion as to whether your initial hypothesis held up - and if not, why not.
+It seems that there is a small corealtion (positive for department and level, engative for age and tenure) and homophily. However, transitivity seems to be a larger contributor to homohpily. However, all those factors are statistically insignificant.

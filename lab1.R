@@ -2,6 +2,7 @@
 library(data.table)
 library(dplyr)
 library(igraph)
+library(ggplot2)
 
 ### 1.import data----
 network <- read.csv("http://moreno.ss.uci.edu/krackht.dat", header=T, sep=";", skip= 7)
@@ -74,32 +75,62 @@ friendship_edges_attributes$same_tenure = ifelse(
   0) # otherwise it's 0
 
 # Get the proportion of each ego's connections who have the same department, level, and age
-ego_homophily_stats <- aggregate(friendship_edges_attributes[,c('same_dept', 'same_level','same_age', 'same_tenure')], by=list(ID1=friendship_edges_attributes$ID1), FUN=mean, na.rm=TRUE)
+ego_homophily_stats <- aggregate(friendship_edges_attributes[,c('same_dept', 'same_level','same_age', 'same_tenure')], by=list(ID1=friendship_edges_attributes$ID1),
+                                 FUN=mean, na.rm=TRUE, all = TRUE)
 
-### 4.merge back to attributes----
+# merge back to attributes
 attributes$ID <- as.numeric(attributes$ID)
 attributes <- merge(attributes, ego_homophily_stats, by.x="ID", by.y="ID1", all =TRUE)
 
+### 4. degree----
+# Add the degree of each vertex to the attributes
+attributes <- merge(attributes, data.frame(ID=V(friendship_graph)$ID,
+                                           degree.in = degree(friendship_graph, mode = "in")),
+                    by='ID', all =TRUE)
+
+attributes <- merge(attributes, data.frame(ID=V(friendship_graph)$ID,
+                                           degree.out = degree(friendship_graph, mode = "out")),
+                    by='ID', all =TRUE)
+
+#transitivity
+attributes <- merge(attributes, data.frame(ID=V(friendship_graph)$ID, 
+                                           transitivity=transitivity(friendship_graph, type="local") ) ,
+                    by='ID', all = TRUE)
+
+### 5. stat----
+#in and out degree
+mean(attributes$degree_in)
+sd(attributes$degree_in)
+
+mean(attributes$degree.out)
+sd(attributes$degree.out)
+
+#reciprocity
+reciprocity(friendship_graph)
+
+#density
+graph.density(friendship_graph)
+
+#initial models
 summary(lm(same_dept ~ Dept, attributes))
 summary(lm(same_level ~ Level, attributes))
 summary(lm(same_age ~ Age, attributes))
 summary(lm(same_tenure ~ Tenure, attributes))
 
+#plots
+ggplot(attributes, aes(x=Dept, y=same_dept)) +
+        geom_point(shape=1) + 
+        geom_smooth(method=lm)
 
-### 5.Homphily with degree----
-# Add the degree of each vertex to the attributes
-attributes <- merge(attributes, data.frame(ID=V(friendship_graph)$ID,
-                             degree= degree(friendship_graph)),
-                           by='ID', all =TRUE)
-
+#secondary models
+#with degree
 summary(lm(same_dept ~ Dept+degree, attributes))
 summary(lm(same_level ~ Level+degree, attributes))
 summary(lm(same_age ~ Age+degree, attributes))
-summary(lm(same_tenure ~ Tenure+degree, attributes))
 
-### 6. add transitivity----
-attributes <- merge(attributes, data.frame(ID=V(friendship_graph)$ID, 
-                                           transitivity=transitivity(friendship_graph, type="local") ) ,
-                    by='ID', all = TRUE)
-
+#with transitivity
 summary(lm(same_age ~ Age + degree + transitivity, attributes))
+
+ggplot(attributes, aes(x=transitivity, y=same_level)) +
+  geom_point(shape=1) + 
+  geom_smooth(method=lm)
