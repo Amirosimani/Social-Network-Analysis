@@ -7,7 +7,7 @@ output: pdf_document
 
 ## 1. Develop a hypothesis about how some ego-network measure (e.g., degree/size, density, diversity, average-level of alters, homophily, structural holes, or brokerage) may be related to some other variable of interest.
  
-I have selected KRACKHARDT--HIGH-TECH MANAGERS data set. I am interested to see how different attributes of manager affect their friendship network. MY hypothesis is that homophilies in friendship ego networks have a positive corealtion with your age group, your deperatment, tenureship and your level in corporate hierarchy.
+I have selected KRACKHARDT--HIGH-TECH MANAGERS data set. I am interested to see how and to what extend different attributes of managers (Age, Level, Department, Tenure) affect their friendship network. My hypothesis is that homophily in friendship ego networks have a positive corelation with your age group, your deperatment, tenureship and your level in corporate hierarchy.
 I define age group as if you are in the range of one standard deviation.
 
 ``` {r, echo= FALSE, results='hide', warning=FALSE,message=FALSE, error=FALSE}
@@ -110,14 +110,13 @@ attributes <- merge(attributes, data.frame(ID=V(friendship_graph)$ID,
 ```
 ## 2. Explain why you think these two variables should be related.
 
-I suggest that in a corporation, you befirend more with colleagues who are in your own department, or in your own level, or in the same age group as you have more work/non-work things to share.
-However, it is not impossible to have one way claims of friendship from a lower level employee to a higher level one, which doenst quite fulfill the definition of friendship. 
+I suggest that in a corporation, you tend to befriend colleagues who are in your own department, or in your own level, or in the same age group as you have more work/non-work things to share. 
 
 ## 3. Tell me about your variables. What is your dependent variable? What are your independent variables? How are they coded? How are they recoded? How are the calculated, if appropriate?
 
-My dependant variable is homophily in ego networks. My independent variables are age, level, tenure, and department. 
+My dependant variable is homophily in ego networks. My independent variables are age, level, tenure, and department. I will introduce more independant variable in the next sections.
 
-My independent variables were colelcted in the attributes table. This consisted of the managers age (in years), length of service or tenure (in years), level in the corporate hierarchy (coded 1,2 and 3; 1=CEO, 2 = Vice President, 3 = manager) and department (coded 1,2,3,4 with the CEO in department 0 ie not in a department).
+My independent variables were collected in the attributes table. This consist of the managers age (in years), length of service or tenure (in years), level in the corporate hierarchy (coded 1,2 and 3; 1=CEO, 2 = Vice President, 3 = manager) and department (coded 1,2,3,4 with the CEO in department 0 ie not in a department).
 
 Age  | Tenure  | Level | Department
 ---- | ------- |------ |-----------
@@ -125,7 +124,7 @@ Age  | Tenure  | Level | Department
 42   | 20      | 2     | 4
 ...  | ...     |...    |...
 
-Since I needed to see if two nodes in a relation are in the same level, same department, and same age and tenureship, I recoded them like below to have 1 or 0 result for each node.
+Since I needed to see if two connected nodes with aare in the same level, same department, and same age and tenureship, I recoded them like below to have 1 or 0 result for each node.
 
 ```{r, eval=FALSE}
 
@@ -180,7 +179,7 @@ graph.density(friendship_graph)
 ```
 
 ## 4. Present your initial results from your first few models. What do they indicated about your hypothesis?
-My initial finding is homophliy of each node based on attributes as shown in the following table. 
+My initial finding on the relation of homophliy to attributes for each node is shown in the following table. 
 
 ``` {r, results='asis'}
 knitr::kable(ego_homophily_stats)
@@ -207,7 +206,7 @@ print(paste0("Average homophily based on tenure: ", mean(ego_homophily_stats$sam
 print(paste0("Standard deviation for homophily based on tenure: ", sd(ego_homophily_stats$same_tenure)))
 ```
 
-As can be seen from means and standard deviations of homophily of different attributes, being in the same level means more homophily with less deviation comparing to other attributes. Also it seems that having the same tenureship is not a major factor in forming homophil network of friendship.
+As can be seen from the means and standard deviations of homophily of different attributes, being in the same level means more homophily with less deviation comparing to other attributes. Also it seems that having the same tenureship is not a major factor in forming homophil network of friendship.
 
 ***
 __4.2 Plots__
@@ -301,4 +300,4 @@ summary(lm(same_tenure ~ Tenure + degree.in + degree.out + transitivity, attribu
 ```
 
 ## 6. And give your best conclusion as to whether your initial hypothesis held up - and if not, why not.
-It seems that there is a small corealtion (positive for department and level, engative for age and tenure) and homophily. However, transitivity seems to be a larger contributor to homohpily. However, all those factors are statistically insignificant.
+It seems that there is a small corealtion (positive for department and level, negative for age and tenure) and homophily. However, transitivity seems to be a larger contributor to homohpily. However, all those factors are statistically insignificant.
