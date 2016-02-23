@@ -1,0 +1,76 @@
+---
+title: "Lab1"
+author: "Amir Imani - ai2335"
+date: "22 February 2016"
+output: pdf_document
+---
+
+## 1. Develop a hypothesis about how some ego-network measure (e.g., degree/size, density, diversity, average-level of alters, homophily, structural holes, or brokerage) may be related to some other variable of interest.
+ 
+I have selected KRACKHARDT--HIGH-TECH MANAGERS data set. I am interested to see how different attributes of manager affect their friendship network. MY hypothesis is that homophilies in friendship ego networks have a positive corealtion with your age group, your deperatment, tenureship and your level in corporate hierarchy.
+I define age group as if you are in the range of one standard deviation.
+
+
+## 2. Explain why you think these two variables should be related.
+
+I suggest that in a corporation, you befirend more with colleagues who are in your own department, or in your own level, or in the same age group as you have more work/non-work things to share.
+However, it is not impossible to have one way claims of friendship from a lower level employee to a higher level one, which doenst quite fulfill the definition of friendship. 
+
+## 3. Tell me about your variables. What is your dependent variable? What are your independent variables? How are they coded? How are they recoded? How are the calculated, if appropriate?
+
+My dependant variable is homophily in ego networks. My independent variables are age, level, tenure, and department. 
+
+My independent variables were colelcted in the attributes table. This consisted of the managers age (in years), length of service or tenure (in years), level in the corporate hierarchy (coded 1,2 and 3; 1=CEO, 2 = Vice President, 3 = manager) and department (coded 1,2,3,4 with the CEO in department 0 ie not in a department).
+
+Age  | Tenure  | Level | Department
+---- | ------- |------ |-----------
+33   | 9       | 3     | 4
+42   | 20      | 2     | 4
+...  | ...     |...    |...
+
+Since I needed to see if two nodes in a relation are in the same level, same department, and same age and tenureship, I recoded them like below to have 1 or 0 result for each node.
+
+```{r, eval=FALSE}
+
+riendship_edges_attributes$same_dept = ifelse(
+  friendship_edges_attributes$Dept1==friendship_edges_attributes$Dept2, 1,
+  0) # otherwise it's 0
+
+#  Add columns  which inidcate if they have the same level
+friendship_edges_attributes$same_level = ifelse(
+  friendship_edges_attributes$Level1==friendship_edges_attributes$Level2, 1,
+  0) # otherwise it's 0
+
+#  Add columns  which inidcate if they are in the same age group (based on age SD)
+friendship_edges_attributes$same_age = ifelse(
+  (friendship_edges_attributes$Age1 < friendship_edges_attributes$Age2 + 5) & 
+    (friendship_edges_attributes$Age1 > friendship_edges_attributes$Age2 - 5),
+   1,
+  0) # otherwise it's 0
+
+#  Add columns  which inidcate if they are in the same tenure group
+friendship_edges_attributes$same_tenure = ifelse(
+  (friendship_edges_attributes$Tenure1 < friendship_edges_attributes$Tenure2 + 1) &
+    (friendship_edges_attributes$Tenure1 > friendship_edges_attributes$Tenure2 - 1),
+  1,
+  0) # otherwise it's 0
+
+```
+
+## 4. Present your initial results from your first few models. What do they indicated about your hypothesis?
+
+
+## 5. Consider alternate specifications of your variables (i.e., recodings of various kinds). Consider interactions among your variables.
+
+
+## 6. And give your best conclusion as to whether your initial hypothesis held up ­ and if not, why not.
+
+```{r}
+summary(cars)
+```
+
+
+
+
+
+

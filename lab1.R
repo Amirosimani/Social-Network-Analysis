@@ -67,8 +67,14 @@ friendship_edges_attributes$same_age = ifelse(
    1,
   0) # otherwise it's 0
 
+#  Add columns  which inidcate if they are in the same tenure group
+friendship_edges_attributes$same_tenure = ifelse(
+  (friendship_edges_attributes$Tenure1 < friendship_edges_attributes$Tenure2 + 1) & (friendship_edges_attributes$Tenure1 > friendship_edges_attributes$Tenure2 - 1),
+  1,
+  0) # otherwise it's 0
+
 # Get the proportion of each ego's connections who have the same department, level, and age
-ego_homophily_stats <- aggregate(friendship_edges_attributes[,c('same_dept', 'same_level','same_age')], by=list(ID1=friendship_edges_attributes$ID1), FUN=mean, na.rm=TRUE)
+ego_homophily_stats <- aggregate(friendship_edges_attributes[,c('same_dept', 'same_level','same_age', 'same_tenure')], by=list(ID1=friendship_edges_attributes$ID1), FUN=mean, na.rm=TRUE)
 
 ### 4.merge back to attributes----
 attributes$ID <- as.numeric(attributes$ID)
@@ -77,8 +83,10 @@ attributes <- merge(attributes, ego_homophily_stats, by.x="ID", by.y="ID1", all 
 summary(lm(same_dept ~ Dept, attributes))
 summary(lm(same_level ~ Level, attributes))
 summary(lm(same_age ~ Age, attributes))
+summary(lm(same_tenure ~ Tenure, attributes))
 
-### 4.Homphily with degree----
+
+### 5.Homphily with degree----
 # Add the degree of each vertex to the attributes
 attributes <- merge(attributes, data.frame(ID=V(friendship_graph)$ID,
                              degree= degree(friendship_graph)),
@@ -87,8 +95,9 @@ attributes <- merge(attributes, data.frame(ID=V(friendship_graph)$ID,
 summary(lm(same_dept ~ Dept+degree, attributes))
 summary(lm(same_level ~ Level+degree, attributes))
 summary(lm(same_age ~ Age+degree, attributes))
+summary(lm(same_tenure ~ Tenure+degree, attributes))
 
-### 5. add transitivity----
+### 6. add transitivity----
 attributes <- merge(attributes, data.frame(ID=V(friendship_graph)$ID, 
                                            transitivity=transitivity(friendship_graph, type="local") ) ,
                     by='ID', all = TRUE)
